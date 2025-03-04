@@ -1,111 +1,141 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
-const Biplot = ({
-    pcScores,         // Array of {id, pc1, pc2} objects for each data point
-    loadings,         // Array of {feature, pc1, pc2} objects for each original variable
-    explainedVariance, // Array of percentages [pc1Variance, pc2Variance]
-    width = 800,
-    height = 600,
-    margin = { top: 40, right: 40, bottom: 60, left: 60 }
-}) => {
+export default function BiPlot({
+    pcScores, // Array of projected data points [x, y] in the PC space
+    loadings, // Array of feature loadings for each PC
+    featureNames, // Array of original feature names
+    variance, // Array of variance explained by each PC
+    selectedDimensions, // Array of selected PC indices (usually [0, 1])
+    originalData, // Optional: original data for tooltips
+    pointLabels, // Optional: labels for each data point
+}) {
     const svgRef = useRef();
 
     useEffect(() => {
         if (!pcScores || !loadings) return;
 
-        // Drawing code will go here
+        const margin = { top: 50, right: 100, bottom: 50, left: 60 };
+        const width = 800 - margin.left - margin.right;
+        const height = 600 - margin.top - margin.bottom;
+
+        // Clear previous SVG
+        d3.select(svgRef.current).selectAll('*').remove();
+
+        // Create SVG
         const svg = d3.select(svgRef.current)
-            .attr('width', width)
-            .attr('height', height);
-
-        // Clear previous content
-        svg.selectAll('*').remove();
-
-        const plot = svg.append('g')
+            .attr('width', width + margin.left + margin.right)
+            .attr('height', height + margin.top + margin.bottom)
+            .append('g')
             .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
-        const plotWidth = width - margin.left - margin.right;
-        const plotHeight = height - margin.top - margin.bottom;
+        // Create scales
+        const xPC = selectedDimensions[0];
+        const yPC = selectedDimensions[1];
 
-        // Scales for data points
+        const xExtent = d3.extent(pcScores, d => d[xPC]);
+        const yExtent = d3.extent(pcScores, d => d[yPC]);
+
+        // Add some padding to extents
+        const xPadding = (xExtent[1] - xExtent[0]) * 0.1;
+        const yPadding = (yExtent[1] - yExtent[0]) * 0.1;
+
         const xScale = d3.scaleLinear()
-            .domain(d3.extent(pcScores, d => d.pc1))
-            .range([0, plotWidth])
-            .nice();
+            .domain([xExtent[0] - xPadding, xExtent[1] + xPadding])
+            .range([0, width]);
 
         const yScale = d3.scaleLinear()
-            .domain(d3.extent(pcScores, d => d.pc2))
-            .range([plotHeight, 0])
-            .nice();
+            .domain([yExtent[0] - yPadding, yExtent[1] + yPadding])
+            .range([height, 0]);
 
         // Draw axes
-        const xAxis = d3.axisBottom(xScale);
-        const yAxis = d3.axisLeft(yScale);
+        svg.append('g')
+            .attr('transform', `translate(0, ${height})`)
+            .call(d3.axisBottom(xScale));
 
-        plot.append('g')
-            .attr('transform', `translate(0, ${plotHeight})`)
-            .call(xAxis);
+        svg.append('g')
+            .call(d3.axisLeft(yScale));
 
-        plot.append('g')
-            .call(yAxis);
+        // Add axis labels
+        svg.append('text')
+            .attr('x', width / 2)
+            .attr('y', height + 40)
+            .style('text-anchor', 'middle')
+            .text(`PC${xPC + 1} (${(variance[xPC] * 100).toFixed(1)}% variance)`);
 
-        // Axis labels
-        plot.append('text')
-            .attr('x', plotWidth / 2)
-            .attr('y', plotHeight + margin.bottom - 10)
-            .attr('text-anchor', 'middle')
-            .text(`PC1 (${explainedVariance[0].toFixed(1)}%)`);
-
-        plot.append('text')
+        svg.append('text')
             .attr('transform', 'rotate(-90)')
-            .attr('x', -plotHeight / 2)
-            .attr('y', -margin.left + 15)
-            .attr('text-anchor', 'middle')
-            .text(`PC2 (${explainedVariance[1].toFixed(1)}%)`);
+            .attr('x', -height / 2)
+            .attr('y', -40)
+            .style('text-anchor', 'middle')
+            .text(`PC${yPC + 1} (${(variance[yPC] * 100).toFixed(1)}% variance)`);
 
         // Draw data points
-        plot.selectAll('.point')
+        const points = svg.selectAll('circle')
             .data(pcScores)
             .enter()
             .append('circle')
-            .attr('class', 'point')
-            .attr('cx', d => xScale(d.pc1))
-            .attr('cy', d => yScale(d.pc2))
-            .attr('r', 3)
-            .attr('fill', 'steelblue')
-            .attr('opacity', 0.7);
+            .attr('cx', d => xScale(d[xPC]))
+            .attr('cy', d => yScale(d[yPC]))
+            .attr('r', 4)
+            .style('fill', '#4285F4')
+            .style('opacity', 0.7);
 
-        // Scale factor for loading vectors
-        const scaleFactor = Math.min(plotWidth, plotHeight) / 2 * 0.8;
+        // Add tooltips if point labels are provided
+        if (pointLabels) {
+            points.append('title')
+                .text((d, i) => pointLabels[i]);
+        }
 
-        // Draw loading vectors
-        const arrows = plot.selectAll('.loading')
+        // Draw feature vectors
+        const loadingScaleFactor = 5; // Scale factor for loading vectors
+
+        svg.selectAll('.loading')
             .data(loadings)
             .enter()
-            .append('g')
-            .attr('class', 'loading');
-
-        // Draw lines for loading vectors
-        arrows.append('line')
+            .append('line')
+            .attr('class', 'loading')
             .attr('x1', xScale(0))
             .attr('y1', yScale(0))
-            .attr('x2', d => xScale(d.pc1 * scaleFactor))
-            .attr('y2', d => yScale(d.pc2 * scaleFactor))
-            .attr('stroke', 'red')
-            .attr('stroke-width', 1);
+            .attr('x2', d => xScale(d[xPC] * loadingScaleFactor))
+            .attr('y2', d => yScale(d[yPC] * loadingScaleFactor))
+            .style('stroke', 'red')
+            .style('stroke-width', 1);
 
-        // Add feature labels at the end of loading vectors
-        arrows.append('text')
-            .attr('x', d => xScale(d.pc1 * scaleFactor * 1.1))
-            .attr('y', d => yScale(d.pc2 * scaleFactor * 1.1))
-            .attr('text-anchor', 'middle')
-            .attr('font-size', '10px')
-            .text(d => d.feature);
+        // Add feature labels
+        svg.selectAll('.feature-label')
+            .data(loadings)
+            .enter()
+            .append('text')
+            .attr('class', 'feature-label')
+            .attr('x', d => xScale(d[xPC] * loadingScaleFactor * 1.1))
+            .attr('y', d => yScale(d[yPC] * loadingScaleFactor * 1.1))
+            .text((d, i) => featureNames[i])
+            .style('font-size', '10px')
+            .style('text-anchor', 'middle');
 
-    }, [pcScores, loadings, explainedVariance, width, height, margin]);
+        // Add origin lines
+        svg.append('line')
+            .attr('x1', xScale(0))
+            .attr('y1', 0)
+            .attr('x2', xScale(0))
+            .attr('y2', height)
+            .style('stroke', '#ccc')
+            .style('stroke-dasharray', '4,4');
 
-    return <svg ref={svgRef}></svg>;
-};
+        svg.append('line')
+            .attr('x1', 0)
+            .attr('y1', yScale(0))
+            .attr('x2', width)
+            .attr('y2', yScale(0))
+            .style('stroke', '#ccc')
+            .style('stroke-dasharray', '4,4');
 
-export default Biplot;
+    }, [pcScores, loadings, featureNames, selectedDimensions, variance]);
+
+    return (
+        <div className="biplot-container">
+            <svg ref={svgRef}></svg>
+        </div>
+    );
+}

@@ -7,19 +7,8 @@ from sklearn.preprocessing import StandardScaler
 def perform_pca():
     # Get the base directory and construct absolute paths
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    matches_path = os.path.join(base_dir, "data", "matches.parquet")
-    players_path = os.path.join(base_dir, "data", "players.parquet")
-    
-    # Check if files exist
-    if not os.path.exists(matches_path):
-        raise FileNotFoundError(f"File not found: {matches_path}")
-    if not os.path.exists(players_path):
-        raise FileNotFoundError(f"File not found: {players_path}")
-        
-    matches_df = pd.read_parquet(matches_path)
-    players_df = pd.read_parquet(players_path)
-
-    merged_df = pd.merge(matches_df, players_df, on="game_id")
+    merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
+    merged_df = pd.read_csv(merged_df_path)
     filtered_df = merged_df[merged_df["num_players"] == 2]
     numeric_df = filtered_df.select_dtypes(include=[np.number])
 
@@ -43,6 +32,9 @@ def perform_pca():
     explained_variance = pca.explained_variance_.tolist()
     explained_variance_ratio = pca.explained_variance_ratio_.tolist()
     
+    # Calculate cumulative explained variance for Scree plot
+    cumulative_variance_ratio = np.cumsum(pca.explained_variance_ratio_).tolist()
+    
     # Also return column names for reference
     feature_names = numeric_df.columns.tolist()
 
@@ -50,31 +42,30 @@ def perform_pca():
         "eigenVectors": eigenvectors,
         "explainedVariance": explained_variance,
         "explainedVarianceRatio": explained_variance_ratio,
-        "featureNames": feature_names
+        "cumulativeVarianceRatio": cumulative_variance_ratio,
+        "featureNames": feature_names,
+        "screeData": {
+            "components": list(range(1, len(explained_variance_ratio) + 1)),
+            "explainedVarianceRatio": explained_variance_ratio,
+            "cumulativeVarianceRatio": cumulative_variance_ratio
+        }
     }
 
 
-def get_biplot_data(selected_dimentions):
+def get_biplot_data(selected_dimensions=None):
+    # Default to first two dimensions if not specified
+    if selected_dimensions is None:
+        selected_dimensions = [0, 1, 2, 3, 4]
+    elif isinstance(selected_dimensions, int):
+        selected_dimensions = list(range(min(selected_dimensions + 1, 5)))
+    elif not isinstance(selected_dimensions, list):
+        selected_dimensions = [0, 1, 2, 3, 4]
 
-    if isinstance(selected_dimentions, int):
-        selected_dimentions = list(range(selected_dimentions + 1))
-    elif not isinstance(selected_dimentions, list):
-        selected_dimentions = [0, 1]
-
+    # Get the base directory and construct absolute path to file
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    matches_path = os.path.join(base_dir, "data", "matches.parquet")
-    players_path = os.path.join(base_dir, "data", "players.parquet")
+    merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
+    merged_df = pd.read_csv(merged_df_path)
     
-    # Check if files exist
-    if not os.path.exists(matches_path):
-        raise FileNotFoundError(f"File not found: {matches_path}")
-    if not os.path.exists(players_path):
-        raise FileNotFoundError(f"File not found: {players_path}")
-        
-    matches_df = pd.read_parquet(matches_path)
-    players_df = pd.read_parquet(players_path)
-
-    merged_df = pd.merge(matches_df, players_df, on="game_id")
     filtered_df = merged_df[merged_df["num_players"] == 2]
     numeric_df = filtered_df.select_dtypes(include=[np.number])
 
@@ -95,18 +86,26 @@ def get_biplot_data(selected_dimentions):
     loadings = pca.components_.T 
     feature_names = numeric_df.columns.tolist()
     variance = pca.explained_variance_ratio_
-    selected_dimensions = selected_dimentions
-    original_data = numeric_df.values
-    point_labels = numeric_df.index.tolist()
+    
+    # Generate point labels (can be customized)
+    point_labels = [f"Point {i+1}" for i in range(len(pca_scores))]
+    
+    # Create original data as a list of dictionaries
+    original_data = []
+    for i, row in enumerate(numeric_df.values):
+        data_point = {}
+        for j, feature in enumerate(feature_names):
+            data_point[feature] = row[j]
+        original_data.append(data_point)
 
     biplot_data = {
-    "pcScores": pca_scores[:, selected_dimensions].tolist(),
-    "loadings": loadings[:, selected_dimensions].tolist(),
-    "featureNames": feature_names,
-    "variance": variance.tolist(),
-    "selectedDimensions": selected_dimensions,
-    "originalData": original_data.tolist(),
-    "pointLabels": point_labels,
-}
+        "pcScores": pca_scores.tolist(),
+        "loadings": loadings.tolist(),
+        "featureNames": feature_names,
+        "variance": variance.tolist(),
+        "selectedDimensions": selected_dimensions,
+        "pointLabels": point_labels,
+        "originalData": original_data
+    }
 
     return biplot_data

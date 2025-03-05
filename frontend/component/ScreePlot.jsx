@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
 
-export default function ScreePlot({ eigenValues }) {
-    const [selectedDimension, setSelectedDimension] = useState(2);
+export default function ScreePlot({ eigenValues, selectedDimension, setSelectedDimension }) {
+    // const [selectedDimension, setSelectedDimension] = useState(2);
     const svgRef = useRef();
     // Increased dimensions for better visualization
     const width = 700;

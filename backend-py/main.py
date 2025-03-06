@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
-from services import perform_pca, get_biplot_data
+from services import perform_pca, get_biplot_data, top_features, get_scatterplot_matrix_data
 
 app = FastAPI()
 
@@ -25,7 +25,15 @@ async def get_biplot(dimensions: Optional[List[int]] = Query(None, description="
     result = get_biplot_data(dimensions)
     return {"biplot": result}
 
+@app.get("/top_features")
+async def get_top_features(dimensions: int = Query(2, description="Number of PCA dimensions to consider")):
+    features = top_features(dimensions)
+    return {"top_features": features}
 
+@app.get("/scatterplot_matrix")
+async def get_scatterplot_matrix(dimensions: int = Query(2, description="Number of PCA dimensions to consider")):
+    result = get_scatterplot_matrix_data(dimensions)
+    return {"scatterplot_matrix": result}
 
 @app.get("/")
 async def root():

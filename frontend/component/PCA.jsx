@@ -4,6 +4,7 @@ import * as d3 from 'd3';
 import ScreePlot from './ScreePlot';
 import BiPlot from './Biplot';
 import axios from 'axios';
+import ScatterPlot_Matrix from './ScatterPlot_Matrix';
 
 export default function PCA() {
     const [eigenValues, setEigenValues] = useState([]);
@@ -92,7 +93,7 @@ export default function PCA() {
                         originalData={biplotData.originalData}
                     />
 
-                    {/* <h2>Hello</h2> */}
+                    <ScatterPlot_Matrix />
                 </>
             )}
         </div>

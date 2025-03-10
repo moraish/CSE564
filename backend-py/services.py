@@ -9,8 +9,7 @@ def perform_pca():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
     merged_df = pd.read_csv(merged_df_path)
-    filtered_df = merged_df[merged_df["num_players"] == 2]
-    numeric_df = filtered_df.select_dtypes(include=[np.number])
+    numeric_df = merged_df.select_dtypes(include=[np.number])
 
     # Dropping any columns with NaN values
     numeric_df = numeric_df.dropna(axis=1)
@@ -66,8 +65,7 @@ def get_biplot_data(selected_dimensions=None):
     merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
     merged_df = pd.read_csv(merged_df_path)
     
-    filtered_df = merged_df[merged_df["num_players"] == 2]
-    numeric_df = filtered_df.select_dtypes(include=[np.number])
+    numeric_df = merged_df.select_dtypes(include=[np.number])
 
     # Dropping any columns with NaN values
     numeric_df = numeric_df.dropna(axis=1)
@@ -116,8 +114,7 @@ def top_features(di):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
     merged_df = pd.read_csv(merged_df_path)
-    filtered_df = merged_df[merged_df["num_players"] == 2]
-    numeric_df = filtered_df.select_dtypes(include=[np.number])
+    numeric_df = merged_df.select_dtypes(include=[np.number])
 
     # Dropping any columns with NaN values
     numeric_df = numeric_df.dropna(axis=1)
@@ -166,13 +163,12 @@ def get_scatterplot_matrix_data(dimensions=2):
     base_dir = os.path.dirname(os.path.abspath(__file__))
     merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
     merged_df = pd.read_csv(merged_df_path)
-    filtered_df = merged_df[merged_df["num_players"] == 2]
     
     # Get the top 4 features based on PCA
     features = top_features(dimensions)
     
     # Extract only the top features from the dataframe
-    feature_data = filtered_df[features].copy()
+    feature_data = merged_df[features].copy()
     
     # Convert to appropriate format for frontend
     result = {

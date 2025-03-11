@@ -6,18 +6,75 @@ const ScatterPlot_Matrix = () => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [dimensions, setDimensions] = useState(2); // Default dimensions parameter
     const svgRef = useRef();
-    const dimensions = 2; // Default dimensions parameter
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const response = await axios.get(`http://127.0.0.1:8000/scatterplot_matrix?dimensions=${dimensions}`);
-                setData(response.data.scatterplot_matrix);
+                const [scatterplotResponse, loadingsResponse] = await Promise.all([
+                    axios.get(`http://127.0.0.1:8000/scatterplot_matrix?dimensions=${dimensions}`),
+                    axios.get(`http://127.0.0.1:8000/pca_loadings?dimensions=${dimensions}`)
+                ]);
+
+                const scatterplotData = scatterplotResponse.data.scatterplot_matrix;
+                let loadingsData = loadingsResponse.data.loadings;
+
+                console.log("Received scatterplot data:", scatterplotData);
+                console.log("Received loadings data:", loadingsData);
+
+                // Transform loadings data if needed
+                if (loadingsData && !('tableData' in loadingsData)) {
+                    // Assume we got a structure like {feature: [loading1, loading2, ...]}
+                    // and transform to {feature: {squared_sum: sum(loadings^2)}}
+                    const transformedLoadings = {};
+
+                    Object.entries(loadingsData).forEach(([feature, loadings]) => {
+                        if (Array.isArray(loadings)) {
+                            // Calculate squared sum
+                            const squared_sum = loadings.reduce((sum, val) => sum + val * val, 0);
+                            transformedLoadings[feature] = {
+                                squared_sum,
+                                loadings: loadings
+                            };
+                        } else {
+                            // If it's not an array, just make sure it has squared_sum
+                            transformedLoadings[feature] = {
+                                ...loadings,
+                                squared_sum: loadings.squared_sum || 0
+                            };
+                        }
+                    });
+
+                    loadingsData = transformedLoadings;
+                    console.log("Transformed loadings data:", loadingsData);
+                } else {
+                    // Create compatible structure with the tableData from the API response
+                    const transformedLoadings = {};
+
+                    // Convert the structured data to the expected format
+                    loadingsData.featureNames.forEach((feature, index) => {
+                        transformedLoadings[feature] = {
+                            squared_sum: loadingsData.squaredLoadings[index],
+                            loadings: loadingsData.allLoadings[index]
+                        };
+                    });
+
+                    loadingsData = transformedLoadings;
+                    console.log("Processed API loadings data:", loadingsData);
+                }
+
+                // Combine the data
+                const combinedData = {
+                    ...scatterplotData,
+                    pca_loadings: loadingsData
+                };
+
+                setData(combinedData);
                 setError(null);
             } catch (err) {
-                setError('Failed to fetch scatterplot matrix data');
+                setError('Failed to fetch data');
                 console.error('Error fetching data:', err);
             } finally {
                 setLoading(false);
@@ -29,7 +86,6 @@ const ScatterPlot_Matrix = () => {
 
     useEffect(() => {
         if (!data || !svgRef.current) return;
-
         createScatterplotMatrix();
     }, [data]);
 
@@ -311,6 +367,89 @@ const ScatterPlot_Matrix = () => {
                 </p>
             </div>
 
+            <div className="mb-6">
+                <label htmlFor="dimensions-slider" className="block text-sm font-medium text-gray-700 mb-1">
+                    Number of Features: {dimensions}
+                </label>
+                <input
+                    type="range"
+                    id="dimensions-slider"
+                    min="2"
+                    max="6"
+                    value={dimensions}
+                    onChange={(e) => setDimensions(parseInt(e.target.value))}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                />
+            </div>
+
+            {data.pca_loadings ? (
+                <div className="mb-6 overflow-x-auto">
+                    <h3 className="text-lg font-semibold mb-2 text-gray-700">Top Features by PCA Loading</h3>
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Rank
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Feature
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Squared Sum of Loadings
+                                </th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Contribution (%)
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {Object.entries(data.pca_loadings)
+                                .filter(([_, loading]) => loading && typeof loading.squared_sum === 'number') // Add filter to ensure squared_sum exists
+                                .sort((a, b) => b[1].squared_sum - a[1].squared_sum)
+                                .slice(0, 4)
+                                .map(([feature, loading], index) => {
+                                    // Calculate total sum safely
+                                    const totalSum = Object.values(data.pca_loadings)
+                                        .filter(l => l && typeof l.squared_sum === 'number')
+                                        .reduce((sum, l) => sum + l.squared_sum, 0);
+
+                                    const contribution = totalSum > 0 ? (loading.squared_sum / totalSum) * 100 : 0;
+
+                                    return (
+                                        <tr key={feature} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {index + 1}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {feature}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {loading.squared_sum.toFixed(4)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <div className="flex items-center">
+                                                    <span className="mr-2">{contribution.toFixed(2)}%</span>
+                                                    <div className="w-24 bg-gray-200 rounded-full h-2.5">
+                                                        <div
+                                                            className="bg-blue-600 h-2.5 rounded-full"
+                                                            style={{ width: `${Math.min(contribution, 100)}%` }}
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="mb-6 p-4 bg-yellow-50 text-yellow-700 rounded-md">
+                    <p>PCA loading data not available. The table cannot be displayed.</p>
+                </div>
+            )}
+
             <div className="overflow-auto">
                 <svg ref={svgRef} className="mx-auto"></svg>
             </div>
@@ -321,10 +460,12 @@ const ScatterPlot_Matrix = () => {
                     This scatterplot matrix shows relationships between top features identified by PCA analysis.
                     Diagonal cells show feature distributions, while other cells display correlations between features.
                     Stronger correlations appear as more distinctive patterns in the scatterplots.
+                    The table above highlights the 4 most influential features based on their PCA loadings.
                 </p>
             </div>
         </div>
     );
 };
+
 
 export default ScatterPlot_Matrix;

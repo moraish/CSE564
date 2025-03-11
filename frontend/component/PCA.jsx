@@ -5,6 +5,7 @@ import ScreePlot from './ScreePlot';
 import BiPlot from './Biplot';
 import axios from 'axios';
 import ScatterPlot_Matrix from './ScatterPlot_Matrix';
+import KMeans from './KMeans';
 
 export default function PCA() {
     const [eigenValues, setEigenValues] = useState([]);
@@ -94,6 +95,8 @@ export default function PCA() {
                     />
 
                     <ScatterPlot_Matrix />
+
+                    <KMeans />
                 </>
             )}
         </div>

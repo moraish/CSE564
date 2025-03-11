@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
-from services import perform_pca, get_biplot_data, top_features, get_scatterplot_matrix_data
+from services import perform_pca, get_biplot_data, top_features, get_scatterplot_matrix_data, get_pca_loadings, perform_kmeans
 
 app = FastAPI()
 
@@ -34,6 +34,16 @@ async def get_top_features(dimensions: int = Query(2, description="Number of PCA
 async def get_scatterplot_matrix(dimensions: int = Query(2, description="Number of PCA dimensions to consider")):
     result = get_scatterplot_matrix_data(dimensions)
     return {"scatterplot_matrix": result}
+
+@app.get("/pca_loadings")
+async def get_loadings(dimensions: int = Query(None, description="Number of PCA dimensions to return (defaults to all)")):
+    loadings = get_pca_loadings(dimensions)
+    return {"loadings": loadings}
+
+@app.get("/kmeans")
+def kmeans_endpoint(clusters: int = 3, dimensions: int = 2):
+    result = perform_kmeans(n_clusters=clusters, dimensions=dimensions)
+    return result
 
 @app.get("/")
 async def root():

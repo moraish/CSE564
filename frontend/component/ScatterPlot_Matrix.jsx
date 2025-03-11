@@ -2,20 +2,33 @@ import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import * as d3 from 'd3';
 
-const ScatterPlot_Matrix = () => {
+const ScatterPlot_Matrix = ({ clusterParam = 3 }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [dimensions, setDimensions] = useState(2); // Default dimensions parameter
+    const [nClusters, setNClusters] = useState(clusterParam); // Renamed from cluster to nClusters
     const svgRef = useRef();
+    // Removed dimensions state variable and set it as a constant
+    const dimensions = 4; // Fixed dimensions parameter
+
+    // Update nClusters if prop changes
+    useEffect(() => {
+        if (clusterParam !== nClusters) {
+            setNClusters(clusterParam);
+        }
+    }, [clusterParam]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
+                // Update API request to use n_clusters parameter instead of cluster
+                const baseUrl = "http://127.0.0.1:8000";
+                const clustersParam = `&n_clusters=${nClusters}`;
+
                 const [scatterplotResponse, loadingsResponse] = await Promise.all([
-                    axios.get(`http://127.0.0.1:8000/scatterplot_matrix?dimensions=${dimensions}`),
-                    axios.get(`http://127.0.0.1:8000/pca_loadings?dimensions=${dimensions}`)
+                    axios.get(`${baseUrl}/scatterplot_matrix?dimensions=${dimensions}${clustersParam}`),
+                    axios.get(`${baseUrl}/pca_loadings?dimensions=${dimensions}`)
                 ]);
 
                 const scatterplotData = scatterplotResponse.data.scatterplot_matrix;
@@ -82,7 +95,7 @@ const ScatterPlot_Matrix = () => {
         };
 
         fetchData();
-    }, [dimensions]);
+    }, [dimensions, nClusters]);
 
     useEffect(() => {
         if (!data || !svgRef.current) return;
@@ -94,6 +107,10 @@ const ScatterPlot_Matrix = () => {
         d3.select(svgRef.current).selectAll('*').remove();
 
         const { features, data: plotData } = data;
+
+        // Add console log to debug data structure
+        console.log("First few data points:", plotData.slice(0, 3));
+
         const margin = { top: 40, right: 40, bottom: 40, left: 40 };
         const size = 140;
         const n = features.length;
@@ -108,6 +125,7 @@ const ScatterPlot_Matrix = () => {
             .attr('preserveAspectRatio', 'xMidYMid meet')
             .append('g')
             .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
 
         // Add gradient background
         const defs = svg.append("defs");
@@ -167,6 +185,104 @@ const ScatterPlot_Matrix = () => {
                 .nice();
         });
 
+
+
+        const hasClusterData = plotData.length > 0 && plotData[0].hasOwnProperty('cluster');
+        console.log("Has cluster data:", hasClusterData);
+
+        const clusterProperty = 'cluster';
+
+        let pointColorScale;
+
+        if (hasClusterData) {
+            // Get unique clusters
+            const clusters = [...new Set(plotData.map(d => d.cluster))].sort((a, b) => a - b);
+
+            console.log("Found clusters:", clusters);
+
+            // Create color scale
+            pointColorScale = d3.scaleOrdinal()
+                .domain(clusters)
+                .range(d3.schemeCategory10);
+        } else {
+            // Default single color if no clusters
+            pointColorScale = d3.scaleOrdinal().range(['#4285F4']);
+        }
+
+        // First, keep just the color scale part from the first block
+        if (hasClusterData) {
+            // Get unique clusters
+            const clusters = [...new Set(plotData.map(d => d.cluster))].sort((a, b) => a - b);
+
+            // Create color scale
+            pointColorScale = d3.scaleOrdinal()
+                .domain(clusters)
+                .range(clusters.length <= 10 ? d3.schemeCategory10 : d3.schemeTableau10);
+        } else {
+            // Default single color if no clusters
+            pointColorScale = d3.scaleOrdinal().range(['#4285F4']);
+        }
+
+        // Then for the second block, adjust the position to avoid overlap
+        if (hasClusterData) {
+            const legend = svg.append('g')
+                .attr('class', 'legend')
+                // Move the legend lower to avoid overlap with the title
+                .attr('transform', `translate(${(n * size) / 2 - 100}, ${-margin.top / 4})`);
+
+            // Rest of legend creation code...
+        }
+
+
+        // Add a legend if we have cluster data
+        if (hasClusterData) {
+            const legend = svg.append('g')
+                .attr('class', 'legend')
+                .attr('transform', `translate(${(n * size) / 2 - 100}, ${-margin.top / 2 - 5})`);
+
+            const clusters = [...new Set(plotData.map(d => d.cluster))].sort((a, b) => a - b);
+
+            // Title for legend
+            // legend.append('rect')
+            //     .attr('x', -10)
+            //     .attr('y', -15)
+            //     .attr('width', clusters.length * 60 + 20)
+            //     .attr('height', 30)
+            //     .attr('rx', 5)
+            //     .attr('fill', 'white')
+            //     .attr('stroke', '#ccc')
+            //     .attr('stroke-width', 1)
+            //     .attr('opacity', 0.8);
+
+            // // Title for legend
+            // legend.append('text')
+            //     .attr('x', 0)
+            //     .attr('y', -5)
+            //     .attr("y", -margin.top + 30)
+            //     .attr('text-anchor', 'start')
+            //     .style('font-size', '12px')
+            //     .style('font-weight', 'bold')
+            //     .text('Clusters:');
+
+            // clusters.forEach((cluster, i) => {
+            //     const g = legend.append('g')
+            //         .attr('transform', `translate(${i * 60}, 0)`);
+
+            //     g.append('rect')
+            //         .attr('x', 60)
+            //         .attr('width', 12)
+            //         .attr('height', 12)
+            //         .attr('fill', pointColorScale(cluster));
+
+            //     g.append('text')
+            //         .attr('x', 75)
+            //         .attr('y', 9)
+            //         .attr('text-anchor', 'start')
+            //         .style('font-size', '10px')
+            //         .text(`${cluster}`);
+            // });
+        }
+
         // Create a cell for each pair of features
         for (let i = 0; i < n; i++) {
             for (let j = 0; j < n; j++) {
@@ -174,6 +290,7 @@ const ScatterPlot_Matrix = () => {
                 const featureY = features[i];
                 const cell = svg.append('g')
                     .attr('transform', `translate(${j * (size + 10)}, ${i * (size + 10)})`);
+
 
                 // Add cell background
                 cell.append('rect')
@@ -255,7 +372,7 @@ const ScatterPlot_Matrix = () => {
                         .attr('cx', d => scales[featureX](d[featureX]))
                         .attr('cy', d => size - scales[featureY](d[featureY]))
                         .attr('r', 0)
-                        .style('fill', '#4285F4')
+                        .style('fill', d => hasClusterData ? pointColorScale(d.cluster) : '#4285F4')
                         .style('stroke', '#fff')
                         .style('stroke-width', 0.5)
                         .style('opacity', 0.7);
@@ -266,27 +383,31 @@ const ScatterPlot_Matrix = () => {
                         .delay((d, i) => i * 5)
                         .attr('r', 3);
 
-                    // Add hover effects
+                    // Add hover effects with cluster info
                     dots.on('mouseover', function (event, d) {
                         d3.select(this)
                             .attr('r', 5)
-                            .style('fill', '#e76f51')
-                            .style('opacity', 1);
+                            .style('opacity', 1)
+                            .style('stroke-width', 1.5);
 
-                        // Add tooltip
+                        // Add tooltip with cluster information if available
+                        const tooltipText = hasClusterData
+                            ? `(${d[featureX].toFixed(2)}, ${d[featureY].toFixed(2)}) Cluster: ${d.cluster}`
+                            : `(${d[featureX].toFixed(2)}, ${d[featureY].toFixed(2)})`;
+
                         cell.append('text')
                             .attr('class', 'tooltip')
                             .attr('x', scales[featureX](d[featureX]))
                             .attr('y', size - scales[featureY](d[featureY]) - 7)
                             .attr('text-anchor', 'middle')
                             .attr('font-size', '10px')
-                            .text(`(${d[featureX].toFixed(2)}, ${d[featureY].toFixed(2)})`);
+                            .text(tooltipText);
                     })
                         .on('mouseout', function () {
                             d3.select(this)
                                 .attr('r', 3)
-                                .style('fill', '#4285F4')
-                                .style('opacity', 0.7);
+                                .style('opacity', 0.7)
+                                .style('stroke-width', 0.5);
 
                             cell.selectAll('.tooltip').remove();
                         });
@@ -359,27 +480,32 @@ const ScatterPlot_Matrix = () => {
     if (!data) return null;
 
     return (
-        <div className="rounded-lg shadow-lg bg-white p-6 max-w-6xl mx-auto">
+        <div className="mt-20 rounded-lg shadow-lg bg-white p-6 max-w-6xl mx-auto">
             <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">Scatterplot Matrix</h2>
                 <p className="text-gray-600 mt-1">
-                    Showing relationships between the {data.features.length} most important features
+                    Showing relationships between the {data?.features?.length || 0} most important features
+                    with {nClusters} clusters
                 </p>
             </div>
 
-            <div className="mb-6">
-                <label htmlFor="dimensions-slider" className="block text-sm font-medium text-gray-700 mb-1">
-                    Number of Features: {dimensions}
-                </label>
-                <input
-                    type="range"
-                    id="dimensions-slider"
-                    min="2"
-                    max="6"
-                    value={dimensions}
-                    onChange={(e) => setDimensions(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
+            <div className="mb-6 flex flex-wrap items-center justify-center">
+                {/* Number of clusters slider - kept this one */}
+                <div className="w-full max-w-md">
+                    <label htmlFor="clusters-slider" className="block text-sm font-medium text-gray-700 mb-1">
+                        Number of Clusters: {nClusters}
+                    </label>
+                    <input
+                        type="range"
+                        id="clusters-slider"
+                        min="2"
+                        max="8"
+                        value={nClusters}
+                        onChange={(e) => setNClusters(parseInt(e.target.value))}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                    />
+                </div>
+                {/* Removed dimensions/features slider */}
             </div>
 
             {data.pca_loadings ? (
@@ -459,6 +585,7 @@ const ScatterPlot_Matrix = () => {
                 <p className="text-sm text-gray-600">
                     This scatterplot matrix shows relationships between top features identified by PCA analysis.
                     Diagonal cells show feature distributions, while other cells display correlations between features.
+                    Data points are colored by cluster assignment ({nClusters} clusters), revealing patterns in how the features relate to each other.
                     Stronger correlations appear as more distinctive patterns in the scatterplots.
                     The table above highlights the 4 most influential features based on their PCA loadings.
                 </p>
@@ -466,6 +593,5 @@ const ScatterPlot_Matrix = () => {
         </div>
     );
 };
-
 
 export default ScatterPlot_Matrix;

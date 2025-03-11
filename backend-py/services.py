@@ -151,51 +151,6 @@ def top_features(di):
     return top_features
 
 
-def get_scatterplot_matrix_data(dimensions=2):
-    """
-    Creates data for a scatterplot matrix of the top 4 features identified by PCA.
-    
-    Args:
-        dimensions (int): Number of PCA dimensions to consider for selecting top features
-        
-    Returns:
-        dict: Data for scatterplot matrix including features and values
-    """
-    # Get the base directory and construct absolute paths
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
-    merged_df = pd.read_csv(merged_df_path)
-    
-    # Get the top 4 features based on PCA
-    features = top_features(dimensions)
-    
-    # Extract only the top features from the dataframe
-    feature_data = merged_df[features].copy()
-    
-    # Convert to appropriate format for frontend
-    result = {
-        "features": features,  # List of feature names
-        "data": []  # Will contain data points
-    }
-    
-    # Convert data to list of dictionaries (one per row)
-    for _, row in feature_data.iterrows():
-        data_point = {}
-        for feature in features:
-            value = row[feature]
-            # Convert numpy types to Python native types for JSON serialization
-            if isinstance(value, np.integer):
-                value = int(value)
-            elif isinstance(value, np.floating):
-                value = float(value)
-            data_point[feature] = value
-        result["data"].append(data_point)
-    
-    # Calculate correlation matrix
-    corr_matrix = feature_data.corr().to_dict(orient='index')
-    result["correlation_matrix"] = corr_matrix
-    
-    return result
 
 def get_pca_loadings(di):
     """
@@ -265,6 +220,75 @@ def get_pca_loadings(di):
         "explainedVariance": pca.explained_variance_ratio_.tolist()
     }
 
+def get_scatterplot_matrix_data(dimensions=2, n_clusters=3):
+    """
+    Creates data for a scatterplot matrix of the top 4 features identified by PCA,
+    including cluster assignments.
+    
+    Args:
+        dimensions (int): Number of PCA dimensions to consider for selecting top features
+        n_clusters (int): Number of clusters to create
+        
+    Returns:
+        dict: Data for scatterplot matrix including features, values, and cluster assignments
+    """
+    # Get the base directory and construct absolute paths
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
+    merged_df = pd.read_csv(merged_df_path)
+    
+    # Get the top 4 features based on PCA
+    features = top_features(dimensions)
+    
+    # Extract only the top features from the dataframe
+    feature_data = merged_df[features].copy()
+    
+    # Perform clustering on these features
+    # Standardizing the feature data
+    scaler = StandardScaler()
+    scaled_features = scaler.fit_transform(feature_data)
+    
+    # Apply K-means clustering
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    cluster_labels = kmeans.fit_predict(scaled_features)
+    
+    # Convert to appropriate format for frontend
+    result = {
+        "features": features,  # List of feature names
+        "data": [],  # Will contain data points
+        "clusterCenters": []  # Will contain cluster centers
+    }
+    
+    # Convert data to list of dictionaries (one per row)
+    for i, row in enumerate(feature_data.iterrows()):
+        _, row_data = row
+        data_point = {}
+        for feature in features:
+            value = row_data[feature]
+            # Convert numpy types to Python native types for JSON serialization
+            if isinstance(value, np.integer):
+                value = int(value)
+            elif isinstance(value, np.floating):
+                value = float(value)
+            data_point[feature] = value
+        
+        # Add cluster assignment
+        data_point["cluster"] = int(cluster_labels[i])
+        result["data"].append(data_point)
+    
+    # Add cluster centers
+    centers = kmeans.cluster_centers_
+    for i, center in enumerate(centers):
+        center_point = {"cluster": i}
+        for j, feature in enumerate(features):
+            center_point[feature] = float(center[j])
+        result["clusterCenters"].append(center_point)
+    
+    # Calculate correlation matrix
+    corr_matrix = feature_data.corr().to_dict(orient='index')
+    result["correlation_matrix"] = corr_matrix
+    
+    return result
 
 
 
@@ -314,3 +338,52 @@ def perform_kmeans(n_clusters=3, dimensions=2):
         "optimalK": n_clusters,  # Return the user-specified k
         "dimensions": dimensions  # Return the dimensions used
     }
+
+
+
+
+# def get_scatterplot_matrix_data(dimensions=2):
+#     """
+#     Creates data for a scatterplot matrix of the top 4 features identified by PCA.
+    
+#     Args:
+#         dimensions (int): Number of PCA dimensions to consider for selecting top features
+        
+#     Returns:
+#         dict: Data for scatterplot matrix including features and values
+#     """
+#     # Get the base directory and construct absolute paths
+#     base_dir = os.path.dirname(os.path.abspath(__file__))
+#     merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
+#     merged_df = pd.read_csv(merged_df_path)
+    
+#     # Get the top 4 features based on PCA
+#     features = top_features(dimensions)
+    
+#     # Extract only the top features from the dataframe
+#     feature_data = merged_df[features].copy()
+    
+#     # Convert to appropriate format for frontend
+#     result = {
+#         "features": features,  # List of feature names
+#         "data": []  # Will contain data points
+#     }
+    
+#     # Convert data to list of dictionaries (one per row)
+#     for _, row in feature_data.iterrows():
+#         data_point = {}
+#         for feature in features:
+#             value = row[feature]
+#             # Convert numpy types to Python native types for JSON serialization
+#             if isinstance(value, np.integer):
+#                 value = int(value)
+#             elif isinstance(value, np.floating):
+#                 value = float(value)
+#             data_point[feature] = value
+#         result["data"].append(data_point)
+    
+#     # Calculate correlation matrix
+#     corr_matrix = feature_data.corr().to_dict(orient='index')
+#     result["correlation_matrix"] = corr_matrix
+    
+#     return result

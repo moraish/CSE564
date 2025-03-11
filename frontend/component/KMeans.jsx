@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import * as d3 from 'd3';
 
-const KMeans = () => {
+const KMeans = ({ clusters, setClusters, colorScale }) => {
+    // Existing state declarations
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const svgRef = useRef();
     const elbowRef = useRef();
-    const [clusters, setClusters] = useState(3);
     const [dimensions, setDimensions] = useState(2);
 
     useEffect(() => {
@@ -146,6 +146,11 @@ const KMeans = () => {
                 .attr('transform', 'rotate(-90)')
                 .text('Principal Component 2'));
 
+        // Add pointsScale
+        const pointColorScale = colorScale || d3.scaleOrdinal()
+            .domain([...Array(optimalK).keys()])
+            .range(d3.schemeCategory10);
+
         // Add points
         const points = svg.selectAll('circle')
             .data(pcaData)
@@ -154,7 +159,7 @@ const KMeans = () => {
             .attr('cx', d => xScale(d[0]))
             .attr('cy', d => yScale(d[1]))
             .attr('r', 0)
-            .style('fill', (_, i) => colorScale(clusterLabels[i]))
+            .style('fill', (_, i) => pointColorScale(clusterLabels[i]))
             .style('stroke', '#fff')
             .style('stroke-width', 1)
             .style('opacity', 0.7);
@@ -203,7 +208,7 @@ const KMeans = () => {
             legendRow.append('rect')
                 .attr('width', 10)
                 .attr('height', 10)
-                .attr('fill', colorScale(i));
+                .attr('fill', pointColorScale(i));
 
             legendRow.append('text')
                 .attr('x', 20)

@@ -29,16 +29,7 @@ function App() {
         <AppBar />
         <Routes>
           <Route path='/assignment1' element={<ChartVisualization />} />
-          <Route path='/assignment2' element={<PCA />} />
-          <Route path='/biplot' element={
-            <Biplot
-              pcScores={pcaData.pcScores}
-              loadings={pcaData.loadings}
-              explainedVariance={pcaData.explainedVariance}
-              width={800}
-              height={600}
-            />
-          } />
+          <Route path='/' element={<PCA />} />
         </Routes>
       </BrowserRouter>
     </>

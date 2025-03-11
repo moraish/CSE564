@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
 
-export default function ScreePlot({ eigenValues, selectedDimension, setSelectedDimension }) {
-    // const [selectedDimension, setSelectedDimension] = useState(2);
+export default function ScreePlot({ eigenValues, selectedDimension, setSelectedDimension, dimensions, setDimensions }) {
     const svgRef = useRef();
     // Increased dimensions for better visualization
     const width = 700;
@@ -154,9 +153,9 @@ export default function ScreePlot({ eigenValues, selectedDimension, setSelectedD
             .attr("rx", 2) // Rounded corners
             .attr("ry", 2)
             .attr("fill", (d, i) => i < selectedDimension ? "#2a9d8f" : "#e9c46a")
-            .attr("stroke", "#495057")
-            .attr("stroke-width", 0.5)
-            .attr("stroke-opacity", 0.5)
+            .attr("stroke", (d, i) => dimensions.includes(i) ? "#000000" : "#495057")
+            .attr("stroke-width", (d, i) => dimensions.includes(i) ? 2.5 : 0.5)
+            .attr("stroke-opacity", (d, i) => dimensions.includes(i) ? 1 : 0.5)
             .transition()
             .duration(800)
             .attr("y", d => yScale(d))
@@ -167,7 +166,7 @@ export default function ScreePlot({ eigenValues, selectedDimension, setSelectedD
             .on("mouseover", function (event, d) {
                 d3.select(this)
                     .attr("fill", "#e76f51")
-                    .attr("stroke-width", 1);
+                    .attr("stroke-width", dimensions.includes(eigenValues.indexOf(d)) ? 2.5 : 1);
 
                 const i = eigenValues.indexOf(d);
                 const percent = (d / totalVariance * 100).toFixed(1);
@@ -186,13 +185,21 @@ export default function ScreePlot({ eigenValues, selectedDimension, setSelectedD
                 const i = eigenValues.indexOf(d);
                 d3.select(this)
                     .attr("fill", i < selectedDimension ? "#2a9d8f" : "#e9c46a")
-                    .attr("stroke-width", 0.5);
+                    .attr("stroke", dimensions.includes(i) ? "#000000" : "#495057")
+                    .attr("stroke-width", dimensions.includes(i) ? 2.5 : 0.5);
 
                 svg.selectAll(".bar-tooltip").remove();
             })
             .on("click", function (event, d) {
                 const i = eigenValues.indexOf(d);
                 setSelectedDimension(i + 1);
+
+                // If user clicks one of the dimensions, update the dimensions to use this one
+                if (dimensions.length === 2 && !dimensions.includes(i)) {
+                    // Replace the second dimension with the clicked one
+                    const newDimensions = [dimensions[0], i];
+                    setDimensions(newDimensions);
+                }
             });
 
         // Add cumulative variance line with animation
@@ -321,7 +328,7 @@ export default function ScreePlot({ eigenValues, selectedDimension, setSelectedD
             .style("fill", "white")
             .text("PCA Scree Plot");
 
-    }, [eigenValues, selectedDimension]);
+    }, [eigenValues, selectedDimension, dimensions, setDimensions]);
 
     return (
         <div className="scree-plot-container" style={{
@@ -337,6 +344,9 @@ export default function ScreePlot({ eigenValues, selectedDimension, setSelectedD
                 <h2 style={{ margin: "0 0 5px 0", color: "#264653" }}>Principal Component Analysis</h2>
                 <p style={{ margin: "0", color: "#666", fontSize: "14px" }}>
                     Visualizing eigenvalues and explained variance
+                </p>
+                <p style={{ margin: "10px 0 0 0", color: "#2a9d8f", fontSize: "14px", fontWeight: "bold" }}>
+                    Selected dimensions for visualization: PC{dimensions[0] + 1} and PC{dimensions[1] + 1}
                 </p>
             </div>
 
@@ -395,6 +405,10 @@ export default function ScreePlot({ eigenValues, selectedDimension, setSelectedD
                     <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                         <div style={{ width: "15px", height: "15px", backgroundColor: "#e9c46a", borderRadius: "3px" }}></div>
                         <span>Unselected dimensions</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                        <div style={{ width: "15px", height: "15px", backgroundColor: "#e9c46a", borderRadius: "3px", border: "2px solid black" }}></div>
+                        <span>Visualized dimensions</span>
                     </div>
                 </div>
             </div>

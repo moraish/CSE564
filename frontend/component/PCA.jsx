@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import ScreePlot from './ScreePlot';
@@ -11,15 +10,30 @@ export default function PCA() {
     const [eigenValues, setEigenValues] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDimension, setSelectedDimension] = useState(2);
+    const [dimensions, setDimensions] = useState([0, 1]); // Initialize with default values
     const [biplotData, setBiplotData] = useState({
         pcScores: [],
         loadings: [],
         featureNames: [],
         variance: [],
-        selectedDimensions: [0, 1],
         pointLabels: [],
         originalData: []
     });
+
+    const [clusters, setClusters] = useState(3);
+
+    // Handle dimension selection changes
+    const handleDimensionChange = (axis, value) => {
+        const newValue = parseInt(value);
+        let newDimensions;
+        if (axis === 'x') {
+            newDimensions = [newValue, dimensions[1]];
+        } else {
+            newDimensions = [dimensions[0], newValue];
+        }
+        setDimensions(newDimensions);
+        // This will trigger a re-render of the Biplot component with new dimensions
+    };
 
     useEffect(() => {
         const fetchEigenValues = async () => {
@@ -51,12 +65,12 @@ export default function PCA() {
             try {
                 // Fix: Remove the URL query parameter as it's duplicating the request parameter
                 // Fix: Convert selectedDimension to an array if it's not already
-                const dimensions = Array.isArray(selectedDimension)
+                const dims = Array.isArray(selectedDimension)
                     ? selectedDimension
                     : Array.from({ length: selectedDimension }, (_, i) => i);
 
                 const response = await axios.get('http://127.0.0.1:8000/biplot', {
-                    params: { dimensions: dimensions }
+                    params: { dimensions: dims }
                 });
 
                 if (response.data && response.data.biplot) {
@@ -71,35 +85,38 @@ export default function PCA() {
         fetchBiplotData();
     }, [selectedDimension]);
 
-
-
-
-
-
-
     return (
         <div>
             {isLoading ? (
                 <div>Loading eigenvalues...</div>
             ) : (
                 <>
-                    <ScreePlot eigenValues={eigenValues} selectedDimension={selectedDimension} setSelectedDimension={setSelectedDimension} />
+                    <ScreePlot
+                        eigenValues={eigenValues}
+                        selectedDimension={selectedDimension}
+                        setSelectedDimension={setSelectedDimension}
+                        dimensions={dimensions}
+                        setDimensions={setDimensions}
+                    />
+
+
                     <BiPlot
                         pcScores={biplotData.pcScores}
                         loadings={biplotData.loadings}
                         featureNames={biplotData.featureNames}
                         variance={biplotData.variance}
-                        selectedDimensions={biplotData.selectedDimensions}
+                        dimensions={dimensions} // Pass the current dimensions state
+                        setDimensions={setDimensions} // Pass the setter
+                        handleDimensionChange={handleDimensionChange}
                         pointLabels={biplotData.pointLabels}
                         originalData={biplotData.originalData}
                     />
 
-                    <ScatterPlot_Matrix />
+                    <ScatterPlot_Matrix clusterParam={clusters} />
 
-                    <KMeans />
+                    <KMeans clusters={clusters} setClusters={setClusters} />
                 </>
             )}
         </div>
     )
 }
-

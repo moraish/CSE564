@@ -31,9 +31,13 @@ async def get_top_features(dimensions: int = Query(2, description="Number of PCA
     return {"top_features": features}
 
 @app.get("/scatterplot_matrix")
-async def get_scatterplot_matrix(dimensions: int = Query(2, description="Number of PCA dimensions to consider")):
-    result = get_scatterplot_matrix_data(dimensions)
+async def get_scatterplot_matrix(
+    dimensions: int = Query(2, description="Number of PCA dimensions to consider"),
+    n_clusters: int = Query(3, description="Number of clusters to create")
+):
+    result = get_scatterplot_matrix_data(dimensions, n_clusters)
     return {"scatterplot_matrix": result}
+
 
 @app.get("/pca_loadings")
 async def get_loadings(dimensions: int = Query(None, description="Number of PCA dimensions to return (defaults to all)")):

@@ -1,11 +1,15 @@
 import pandas as pd
 import numpy as np
 import os
+import json
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-
-
+from sklearn.manifold import MDS
+from sklearn.preprocessing import StandardScaler
+from scipy.spatial.distance import pdist, squareform
+from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import LabelEncoder 
 def perform_pca():
     # Get the base directory and construct absolute paths
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -291,8 +295,6 @@ def get_scatterplot_matrix_data(dimensions=2, n_clusters=3):
     return result
 
 
-
-
 def perform_kmeans(n_clusters=3, dimensions=2):
     # Get the base directory and construct absolute paths
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -340,50 +342,171 @@ def perform_kmeans(n_clusters=3, dimensions=2):
     }
 
 
-
-
-# def get_scatterplot_matrix_data(dimensions=2):
-#     """
-#     Creates data for a scatterplot matrix of the top 4 features identified by PCA.
+def compute_mds_json(cluster_labels=None, find_optimal=False):
+    """
+    Computes MDS plots for data points and variables.
     
-#     Args:
-#         dimensions (int): Number of PCA dimensions to consider for selecting top features
+    Parameters:
+    cluster_labels (pd.Series or list, optional): Cluster labels for coloring points.
+    find_optimal (bool): Whether to find the optimal number of clusters (defaults to False).
+    
+    Returns:
+    dict: A dictionary containing MDS coordinates for data points and variables in JSON format.
+    """
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
+    df = pd.read_csv(merged_df_path)
+    
+    # Select numeric columns only
+    df = df.select_dtypes(include=[np.number])
+    
+    # Dropping any columns with NaN values
+    df = df.dropna(axis=1)
+    
+    # Standardize the data
+    scaler = StandardScaler()
+    df_scaled = scaler.fit_transform(df)
+    
+    # (a) Data MDS plot using Euclidean distance
+    data_dist = squareform(pdist(df_scaled, metric='euclidean'))
+    mds_data = MDS(n_components=2, dissimilarity='precomputed', random_state=42)
+    data_coords = mds_data.fit_transform(data_dist)
+    
+    # Determine optimal number of clusters if requested
+    optimal_k = None
+    if find_optimal:
+        # Calculate silhouette scores for different k values
         
-#     Returns:
-#         dict: Data for scatterplot matrix including features and values
-#     """
-#     # Get the base directory and construct absolute paths
-#     base_dir = os.path.dirname(os.path.abspath(__file__))
-#     merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
-#     merged_df = pd.read_csv(merged_df_path)
+        silhouette_scores = []
+        k_range = range(2, 11)  # Test 2-10 clusters
+        
+        for k in k_range:
+            kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(data_coords)  # Cluster in MDS space
+            
+            # Skip if there's only one cluster or some clusters are empty
+            if len(np.unique(labels)) < 2:
+                silhouette_scores.append(-1)
+                continue
+                
+            # Calculate silhouette score
+            score = silhouette_score(data_coords, labels)
+            silhouette_scores.append(score)
+        
+        # Find k with highest silhouette score
+        if silhouette_scores:
+            optimal_k = k_range[np.argmax(silhouette_scores)]
+            
+            # Use the optimal number of clusters
+            kmeans = KMeans(n_clusters=optimal_k, random_state=42, n_init=10)
+            cluster_labels = kmeans.fit_predict(data_coords)
     
-#     # Get the top 4 features based on PCA
-#     features = top_features(dimensions)
+    data_json = [{
+        "x": float(data_coords[i, 0]),
+        "y": float(data_coords[i, 1]),
+        "cluster": int(cluster_labels[i]) if cluster_labels is not None else None
+    } for i in range(len(df))]
     
-#     # Extract only the top features from the dataframe
-#     feature_data = merged_df[features].copy()
+    # (b) Variable MDS plot using (1 - |correlation|) distance
+    corr_matrix = df.corr().abs()  # Absolute correlation
+    var_dist = 1 - corr_matrix
+    var_dist[var_dist < 0] = 0  # Ensure non-negative distances
     
-#     # Convert to appropriate format for frontend
-#     result = {
-#         "features": features,  # List of feature names
-#         "data": []  # Will contain data points
-#     }
+    mds_var = MDS(n_components=2, dissimilarity='precomputed', random_state=42)
+    var_coords = mds_var.fit_transform(var_dist)
     
-#     # Convert data to list of dictionaries (one per row)
-#     for _, row in feature_data.iterrows():
-#         data_point = {}
-#         for feature in features:
-#             value = row[feature]
-#             # Convert numpy types to Python native types for JSON serialization
-#             if isinstance(value, np.integer):
-#                 value = int(value)
-#             elif isinstance(value, np.floating):
-#                 value = float(value)
-#             data_point[feature] = value
-#         result["data"].append(data_point)
+    var_json = [{
+        "x": float(var_coords[i, 0]),
+        "y": float(var_coords[i, 1]),
+        "variable": df.columns[i]
+    } for i in range(len(df.columns))]
     
-#     # Calculate correlation matrix
-#     corr_matrix = feature_data.corr().to_dict(orient='index')
-#     result["correlation_matrix"] = corr_matrix
+    result = {
+        "data_mds": data_json, 
+        "variable_mds": var_json
+    }
     
-#     return result
+    # Add optimal clustering info if available
+    if find_optimal and optimal_k:
+        result["optimal_k"] = optimal_k
+        
+    return json.dumps(result, indent=4)
+
+
+def compute_parallel_coordinates_json():
+    """
+    Converts a dataframe into a format suitable for parallel coordinates plotting.
+    Handles both numerical and categorical variables.
+    
+    Returns:
+    dict: A dictionary with processed data and axis information
+    """
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    merged_df_path = os.path.join(base_dir, "data", "merged_df.csv")
+    df = pd.read_csv(merged_df_path)
+
+    # Replace inf, -inf with large finite values and NaN with None
+    df = df.replace([np.inf, -np.inf], [1.0e+308, -1.0e+308])
+    # Remove 'Name' column if it exists
+    if 'Name' in df.columns:
+        df = df.drop(columns=['Name', 'POS'])
+    
+    df_processed = df.copy()
+    encoders = {}
+    
+    # Create axis information for each column
+    axes = []
+    for col in df.columns:
+        axis_info = {
+            "name": col,  # Original column name
+            "type": "categorical" if df[col].dtype == "object" or df[col].dtype == "category" else "numerical"
+        }
+        
+        # Add range information for numerical columns
+        if axis_info["type"] == "numerical":
+            axis_info["min"] = float(df[col].min()) if np.isfinite(df[col].min()) else None
+            axis_info["max"] = float(df[col].max()) if np.isfinite(df[col].max()) else None
+        
+        axes.append(axis_info)
+    
+    # Process categorical variables
+    for col in df.select_dtypes(include=['object', 'category']).columns:
+        encoder = LabelEncoder()
+        df_processed[col] = encoder.fit_transform(df[col].fillna('missing'))
+        # Convert NumPy values to native Python types
+        encoders[col] = {str(k): int(v) for k, v in zip(encoder.classes_, encoder.transform(encoder.classes_))}
+    
+    # Convert DataFrame to records and ensure all values are JSON serializable
+    records = []
+    for record in df_processed.to_dict(orient='records'):
+        # Convert any NumPy types to native Python types
+        clean_record = {}
+        for key, value in record.items():
+            if pd.isna(value):
+                clean_record[key] = None
+            elif isinstance(value, (np.integer, np.int64, np.int32)):
+                clean_record[key] = int(value)
+            elif isinstance(value, (np.floating, np.float64, np.float32)):
+                if np.isfinite(value):
+                    clean_record[key] = float(value)
+                else:
+                    clean_record[key] = None
+            elif isinstance(value, np.bool_):
+                clean_record[key] = bool(value)
+            elif isinstance(value, (np.ndarray, list)):
+                clean_record[key] = [
+                    None if pd.isna(x) else
+                    int(x) if isinstance(x, np.integer) else 
+                    float(x) if isinstance(x, np.floating) and np.isfinite(x) else
+                    bool(x) if isinstance(x, np.bool_) else x 
+                    for x in value
+                ]
+            else:
+                clean_record[key] = value
+        records.append(clean_record)
+    
+    return {
+        "records": records,
+        "axes": axes,
+        "encoders": encoders
+    }

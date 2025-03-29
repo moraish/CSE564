@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+import json
 from typing import List, Optional
-from services import perform_pca, get_biplot_data, top_features, get_scatterplot_matrix_data, get_pca_loadings, perform_kmeans
+from services import perform_pca, get_biplot_data, top_features, get_scatterplot_matrix_data, get_pca_loadings, perform_kmeans, compute_mds_json, compute_parallel_coordinates_json
 
 app = FastAPI()
 
@@ -48,6 +49,45 @@ async def get_loadings(dimensions: int = Query(None, description="Number of PCA 
 def kmeans_endpoint(clusters: int = 3, dimensions: int = 2):
     result = perform_kmeans(n_clusters=clusters, dimensions=dimensions)
     return result
+
+@app.get("/mdp")
+def get_mdp(clusters: int = 3, find_optimal: bool = True):
+    """
+    Returns Multidimensional Scaling (MDS) visualization data for both data points and variables.
+    
+    Parameters:
+    clusters (int): Number of clusters to use for coloring points (default: 3)
+    find_optimal (bool): Whether to find the optimal number of clusters automatically (default: False)
+    
+    Returns:
+    dict: MDS coordinates for data points and variables
+    """
+    if find_optimal:
+        # If finding optimal clusters, run the MDS with optimization
+        mds_data = compute_mds_json(cluster_labels=None, find_optimal=True)
+    else:
+        # Otherwise use the user-specified number of clusters
+        kmeans_result = perform_kmeans(n_clusters=clusters)
+        cluster_labels = kmeans_result["clusterLabels"]
+        mds_data = compute_mds_json(cluster_labels=cluster_labels, find_optimal=False)
+    
+    # The function returns a JSON string, but FastAPI will handle serialization
+    return json.loads(mds_data)
+
+@app.get("/pdp")
+def get_parallel_coordinates():
+    """
+    Returns data for parallel coordinates visualization.
+    
+    Returns:
+    dict: Data formatted for parallel coordinates plotting, including encoded categorical variables and axis information
+    """
+    # Call the service function to get parallel coordinates data
+    pdp_data = compute_parallel_coordinates_json()
+    
+    # Return the complete data structure
+    return pdp_data
+
 
 @app.get("/")
 async def root():

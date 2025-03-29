@@ -6,6 +6,8 @@ import ChartVisualization from '../component/ChartVisualization'
 import AppBar from '../component/AppBar'
 import PCA from '../component/PCA';
 import Biplot from '../component/Biplot';
+import MDP_Layout from '../component/MDP_Layout';
+
 
 function App() {
   // Example data format
@@ -30,6 +32,7 @@ function App() {
         <Routes>
           <Route path='/assignment1' element={<ChartVisualization />} />
           <Route path='/' element={<PCA />} />
+          <Route path='/2b' element={<MDP_Layout />} />
         </Routes>
       </BrowserRouter>
     </>

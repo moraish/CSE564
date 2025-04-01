@@ -1,5 +1,5 @@
 import MDP from "./MDP";
-import PDP from "./PDP";
+import PCP from "./PCP";
 
 export default function MDP_Layout() {
     return (
@@ -8,7 +8,7 @@ export default function MDP_Layout() {
                 <MDP />
             </div>
             <div className="mb-15">
-                <PDP />
+                <PCP />
             </div>
         </>
     )

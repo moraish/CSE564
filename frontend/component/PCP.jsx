@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import axios from 'axios';
 
-export default function PDP() {
+export default function PCP() {
     const [data, setData] = useState({
         records: [],
         axes: [],
@@ -441,7 +441,6 @@ export default function PDP() {
                 .style("font-size", "12px")
                 .style("font-weight", "bold")
                 .text(dimension);
-
 
 
             // Make axes reorderable

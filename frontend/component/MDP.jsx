@@ -337,6 +337,7 @@ export default function MDP() {
                         <h3 className="text-lg font-semibold mb-2 text-gray-700 text-center">
                             Data Points MDS
                         </h3>
+
                         <svg
                             ref={dataPlotRef}
                             viewBox="0 0 600 500"

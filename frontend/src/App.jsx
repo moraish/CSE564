@@ -31,7 +31,7 @@ function App() {
         <AppBar />
         <Routes>
           <Route path='/assignment1' element={<ChartVisualization />} />
-          <Route path='/' element={<PCA />} />
+          <Route path='/assignment2' element={<PCA />} />
           <Route path='/2b' element={<MDP_Layout />} />
         </Routes>
       </BrowserRouter>

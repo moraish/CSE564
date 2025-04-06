@@ -5,6 +5,10 @@ import * as d3 from 'd3';
 import LinePlot from './components/standard/LinePlot';
 import Scatterplot from './components/standard/Scatterplot';
 import ScatterplotMatrix from './components/standard/ScatterplotMatrix';
+import MDS from './components/nonStandard/MDS';
+import PCA from './components/nonStandard/PCA';
+import MCA from './components/nonStandard/MCA';
+import PCP from './components/nonStandard/PCP';
 
 export default function Dashboard() {
     // Bar Chart
@@ -61,6 +65,191 @@ export default function Dashboard() {
     ];
     const matrixDimensions = ['sales', 'profit', 'growth', 'cost'];
 
+    const mdsData = [
+        { label: "Product A", x: -2.5, y: 1.2, category: "Electronics" },
+        { label: "Product B", x: -2.2, y: -0.8, category: "Electronics" },
+        { label: "Product C", x: -1.8, y: 1.7, category: "Electronics" },
+        { label: "Product D", x: -0.5, y: 2.4, category: "Furniture" },
+        { label: "Product E", x: 0.3, y: 1.8, category: "Furniture" },
+        { label: "Product F", x: 0.8, y: 1.2, category: "Furniture" },
+        { label: "Product G", x: 1.5, y: -0.7, category: "Apparel" },
+        { label: "Product H", x: 2.0, y: -1.5, category: "Apparel" },
+        { label: "Product I", x: 2.3, y: 0.5, category: "Apparel" },
+        { label: "Product J", x: 1.2, y: -2.1, category: "Apparel" },
+        { label: "Product K", x: -1.0, y: -1.5, category: "Electronics" },
+        { label: "Product L", x: -0.2, y: -2.0, category: "Furniture" }
+    ];
+
+
+    const pcaData = [
+        { label: "Item 1", pc1: 2.1, pc2: 1.5, category: "Group A" },
+        { label: "Item 2", pc1: 1.8, pc2: -0.5, category: "Group A" },
+        { label: "Item 3", pc1: 2.5, pc2: 0.8, category: "Group A" },
+        { label: "Item 4", pc1: -0.2, pc2: 1.9, category: "Group B" },
+        { label: "Item 5", pc1: -0.9, pc2: 1.2, category: "Group B" },
+        { label: "Item 6", pc1: -1.5, pc2: 1.5, category: "Group B" },
+        { label: "Item 7", pc1: -2.0, pc2: -0.8, category: "Group C" },
+        { label: "Item 8", pc1: -1.7, pc2: -1.3, category: "Group C" },
+        { label: "Item 9", pc1: -1.9, pc2: -0.5, category: "Group C" },
+        { label: "Item 10", pc1: 0.5, pc2: -1.8, category: "Group D" },
+        { label: "Item 11", pc1: 1.2, pc2: -1.5, category: "Group D" },
+        { label: "Item 12", pc1: 0.8, pc2: -2.0, category: "Group D" }
+    ];
+
+    // Feature vectors showing the contribution of original features to PCs
+    const pcaFeatures = [
+        { feature: "Feature 1", pc1: 0.8, pc2: 0.1 },
+        { feature: "Feature 2", pc1: 0.7, pc2: -0.5 },
+        { feature: "Feature 3", pc1: -0.2, pc2: 0.9 },
+        { feature: "Feature 4", pc1: -0.5, pc2: 0.7 }
+    ];
+
+    const mcaData = [
+        { label: "Person 1", dim1: 1.2, dim2: 0.8, category: "Segment A", attributes: ["Young", "Urban", "High Income"] },
+        { label: "Person 2", dim1: 1.5, dim2: 1.1, category: "Segment A", attributes: ["Young", "Urban", "High Income"] },
+        { label: "Person 3", dim1: 0.9, dim2: 0.7, category: "Segment A", attributes: ["Young", "Urban", "Medium Income"] },
+        { label: "Person 4", dim1: -0.2, dim2: 1.3, category: "Segment B", attributes: ["Middle Age", "Urban", "High Income"] },
+        { label: "Person 5", dim1: -0.5, dim2: 1.0, category: "Segment B", attributes: ["Middle Age", "Urban", "Medium Income"] },
+        { label: "Person 6", dim1: -0.8, dim2: 0.6, category: "Segment B", attributes: ["Middle Age", "Urban", "Low Income"] },
+        { label: "Person 7", dim1: -1.2, dim2: -0.4, category: "Segment C", attributes: ["Senior", "Rural", "Medium Income"] },
+        { label: "Person 8", dim1: -1.5, dim2: -0.7, category: "Segment C", attributes: ["Senior", "Rural", "Low Income"] },
+        { label: "Person 9", dim1: -1.3, dim2: -0.5, category: "Segment C", attributes: ["Senior", "Rural", "Low Income"] },
+        { label: "Person 10", dim1: 0.5, dim2: -1.0, category: "Segment D", attributes: ["Young", "Rural", "Medium Income"] },
+        { label: "Person 11", dim1: 0.8, dim2: -1.3, category: "Segment D", attributes: ["Young", "Rural", "Low Income"] },
+        { label: "Person 12", dim1: 0.3, dim2: -0.9, category: "Segment D", attributes: ["Middle Age", "Rural", "Low Income"] }
+    ];
+
+    // Variable categories plotted in the same correspondence space
+    const mcaVariables = [
+        // Age categories
+        { variable: "Age", category: "Young", dim1: 0.9, dim2: -0.3 },
+        { variable: "Age", category: "Middle Age", dim1: -0.4, dim2: 0.5 },
+        { variable: "Age", category: "Senior", dim1: -1.4, dim2: -0.6 },
+
+        // Location categories
+        { variable: "Location", category: "Urban", dim1: 0.5, dim2: 1.1 },
+        { variable: "Location", category: "Rural", dim1: -0.6, dim2: -1.0 },
+
+        // Income categories
+        { variable: "Income", category: "High Income", dim1: 0.7, dim2: 1.3 },
+        { variable: "Income", category: "Medium Income", dim1: 0.2, dim2: 0.1 },
+        { variable: "Income", category: "Low Income", dim1: -0.8, dim2: -0.9 }
+    ];
+
+    // Sample data for Parallel Coordinate Plot
+    const PCPData = [
+        {
+            id: 1,
+            category: "Electronics",
+            price: 1200,
+            rating: 4.5,
+            stockLevel: 85,
+            salesPerMonth: 120,
+            weight: 2.3,
+            label: "Laptop Pro X"
+        },
+        {
+            id: 2,
+            category: "Electronics",
+            price: 800,
+            rating: 4.2,
+            stockLevel: 42,
+            salesPerMonth: 90,
+            weight: 1.8,
+            label: "Tablet Ultra"
+        },
+        {
+            id: 3,
+            category: "Home Goods",
+            price: 350,
+            rating: 4.0,
+            stockLevel: 120,
+            salesPerMonth: 65,
+            weight: 8.5,
+            label: "Coffee Maker"
+        },
+        {
+            id: 4,
+            category: "Fashion",
+            price: 120,
+            rating: 3.8,
+            stockLevel: 200,
+            salesPerMonth: 150,
+            weight: 0.4,
+            label: "Designer Jeans"
+        },
+        {
+            id: 5,
+            category: "Home Goods",
+            price: 550,
+            rating: 4.7,
+            stockLevel: 35,
+            salesPerMonth: 30,
+            weight: 12.6,
+            label: "Stand Mixer"
+        },
+        {
+            id: 6,
+            category: "Electronics",
+            price: 950,
+            rating: 3.9,
+            stockLevel: 60,
+            salesPerMonth: 75,
+            weight: 0.8,
+            label: "Smartphone X2"
+        },
+        {
+            id: 7,
+            category: "Fashion",
+            price: 80,
+            rating: 4.1,
+            stockLevel: 300,
+            salesPerMonth: 220,
+            weight: 0.3,
+            label: "T-Shirt Premium"
+        },
+        {
+            id: 8,
+            category: "Home Goods",
+            price: 220,
+            rating: 4.3,
+            stockLevel: 75,
+            salesPerMonth: 45,
+            weight: 5.2,
+            label: "Blender Pro"
+        },
+        {
+            id: 9,
+            category: "Electronics",
+            price: 1500,
+            rating: 4.8,
+            stockLevel: 20,
+            salesPerMonth: 40,
+            weight: 3.1,
+            label: "Gaming PC"
+        },
+        {
+            id: 10,
+            category: "Fashion",
+            price: 250,
+            rating: 4.4,
+            stockLevel: 90,
+            salesPerMonth: 85,
+            weight: 0.5,
+            label: "Leather Jacket"
+        }
+    ];
+
+    const pcpDimensions = [
+        { name: "price", label: "Price ($)" },
+        { name: "rating", label: "Rating" },
+        { name: "stockLevel", label: "Stock Level" },
+        { name: "salesPerMonth", label: "Monthly Sales" },
+        { name: "weight", label: "Weight (kg)" }
+    ];
+
+
+
     return (
         <div className="h-screen bg-slate-100 p-4 font-sans flex flex-col overflow-hidden">
             {/* Simple Header */}
@@ -71,7 +260,7 @@ export default function Dashboard() {
             {/* Main Content - Chart Grid */}
             <main className="flex-1 grid grid-cols-3 grid-rows-2 gap-3 min-h-0">
                 {/* Chart 1 */}
-                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
+                {/* <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
                     <h3 className="text-sm font-medium text-gray-700 mb-1 flex-shrink-0">Visitor Trends</h3>
                     <div className="flex-1 min-h-0">
                         <BarChart
@@ -84,10 +273,28 @@ export default function Dashboard() {
                             transitionDuration={500}
                         />
                     </div>
+                </div> */}
+
+
+                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
+                    <h3 className="text-sm font-medium text-gray-700 mb-1 flex-shrink-0">Principal Component Analysis</h3>
+                    <div className="flex-1 min-h-0">
+                        <PCA
+                            data={pcaData}
+                            margin={{ top: 30, right: 30, bottom: 40, left: 50 }}
+                            dotColor="#8B5CF6"
+                            dotHoverColor="#A78BFA"
+                            dotRadius={4}
+                            transitionDuration={800}
+                            showLabels={true}
+                            showArrows={true}
+                            featureData={pcaFeatures}
+                        />
+                    </div>
                 </div>
 
                 {/* Chart 2 */}
-                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
+                {/* <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
                     <h3 className="text-sm font-medium text-gray-700 mb-1 flex-shrink-0">Traffic Distribution</h3>
                     <div className="flex-1 min-h-0">
                         <PieChart
@@ -100,10 +307,26 @@ export default function Dashboard() {
                             legendPosition="right"
                         />
                     </div>
+                </div> */}
+                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
+                    <h3 className="text-sm font-medium text-gray-700 mb-1 flex-shrink-0">Multiple Correspondence Analysis</h3>
+                    <div className="flex-1 min-h-0">
+                        <MCA
+                            data={mcaData}
+                            margin={{ top: 30, right: 30, bottom: 40, left: 50 }}
+                            dotColor="#F59E0B"
+                            dotHoverColor="#FBBF24"
+                            dotRadius={4}
+                            transitionDuration={800}
+                            showLabels={false}
+                            showVariables={true}
+                            variableData={mcaVariables}
+                        />
+                    </div>
                 </div>
 
                 {/* Chart 3 */}
-                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
+                {/* <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
                     <h3 className="text-sm font-medium text-gray-700 mb-1 flex-shrink-0">User Engagement</h3>
                     <div className="flex-1 min-h-0">
                         <LinePlot
@@ -114,6 +337,27 @@ export default function Dashboard() {
                             xAxisLabel="Month"
                             yAxisLabel="Users (K)"
                             transitionDuration={800}
+                        />
+                    </div>
+                </div> */}
+
+                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
+                    <h3 className="text-sm font-medium text-gray-700 mb-1 flex-shrink-0">Product Attribute Analysis</h3>
+                    <div className="flex-1 min-h-0">
+                        <PCP
+                            data={PCPData}
+                            dimensions={pcpDimensions}
+                            margin={{ top: 30, right: 30, bottom: 40, left: 50 }}
+                            lineColor="#10B981"
+                            lineHoverColor="#34D399"
+                            lineOpacity={0.6}
+                            lineHoverOpacity={0.9}
+                            lineWidth={1.5}
+                            transitionDuration={800}
+                            title="Product Metrics"
+                            showLabels={true}
+                            labelKey="label"
+                            colorByCategory={true}
                         />
                     </div>
                 </div>
@@ -156,12 +400,18 @@ export default function Dashboard() {
                 </div>
 
                 {/* Chart 6 */}
-                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-2">
-                    <div className="h-full w-full flex items-center justify-center bg-gray-50">
-                        <div className="text-center text-gray-400">
-                            <span className="text-3xl">📊</span>
-                            <p className="text-xs mt-1">Key Metrics</p>
-                        </div>
+                <div className="bg-white rounded-md shadow-sm border border-gray-100 p-3 flex flex-col overflow-hidden">
+                    <h3 className="text-sm font-medium text-gray-700 mb-1 flex-shrink-0">Product Similarity Map</h3>
+                    <div className="flex-1 min-h-0">
+                        <MDS
+                            data={mdsData}
+                            margin={{ top: 30, right: 30, bottom: 40, left: 50 }}  // Increased top margin for legend
+                            dotColor="#8B5CF6"
+                            dotHoverColor="#A78BFA"
+                            dotRadius={4}
+                            transitionDuration={800}
+                            showLabels={true}
+                        />
                     </div>
                 </div>
             </main>

@@ -106,7 +106,7 @@ export default function LinePlot({
         if (yAxisLabel) {
             svg.append("text")
                 .attr("transform", "rotate(-90)")
-                .attr("y", -margin.left + 12) // Move closer to the axis
+                .attr("y", -margin.left) // Move closer to the axis
                 .attr("x", -(innerHeight / 2))
                 .attr("dy", "1em")
                 .style("text-anchor", "middle")
